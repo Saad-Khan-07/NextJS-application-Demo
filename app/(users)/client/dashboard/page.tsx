@@ -1,30 +1,33 @@
-"use client"
-import { redirect } from "next/navigation";
-import LogoutButton from "@/app/dashboard/logout-button";
+"use client";
+// import { redirect } from "next/navigation";
+import LogoutButton from "@/components/LogoutButton";
 import Sidebar from "@/components/Sidebar";
 import { useEffect, useState } from "react";
 
 export default function DashboardPage() {
-  const [session, setSession] = useState<{ user?: any; authenticated: boolean } | null>(null);
-  
-    useEffect(() => {
-      async function fetchSession() {
-        const res = await fetch('/api/auth/session');
-        const data = await res.json();
-        setSession(data);
-      }
-  
-      fetchSession();
-    }, []);
+  const [session, setSession] = useState<{
+    user?: any;
+    authenticated: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    async function fetchSession() {
+      const res = await fetch("/api/auth/session");
+      const data = await res.json();
+      setSession(data);
+    }
+
+    fetchSession();
+  }, []);
 
   // If not authenticated, show error
   if (session && !session.authenticated) {
-  window.location.href = "/login"; // or useRouter().push("/login")
-}
+    window.location.href = "/login"; // or useRouter().push("/login")
+  }
 
-if (!session) {
-  return <div>Loading...</div>; // Or a spinner
-}
+  if (!session) {
+    return <div>Loading...</div>; // Or a spinner
+  }
 
   const { user } = session;
   const now = new Date();

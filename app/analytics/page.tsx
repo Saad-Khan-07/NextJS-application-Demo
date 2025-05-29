@@ -1,6 +1,7 @@
 "use client";
 
 import BarChart from "@/components/BarChart";
+import MobileChart from "@/components/MobileChart";
 import Sidebar from "@/components/Sidebar";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -16,6 +17,18 @@ function AnalyticsPage() {
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check screen size for responsive behavior
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     async function fetchSession() {
@@ -95,7 +108,10 @@ function AnalyticsPage() {
   if (loading || !session) {
     return (
       <div className="flex justify-center items-center min-h-screen text-gray-500">
-        Loading...
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-sm sm:text-base">Loading...</p>
+        </div>
       </div>
     );
   }
@@ -103,8 +119,10 @@ function AnalyticsPage() {
   // Show error state
   if (error) {
     return (
-      <div className="flex justify-center items-center min-h-screen text-red-600">
-        {error}
+      <div className="flex justify-center items-center min-h-screen text-red-600 px-4">
+        <div className="text-center">
+          <p className="text-sm sm:text-base">{error}</p>
+        </div>
       </div>
     );
   }
@@ -112,8 +130,10 @@ function AnalyticsPage() {
   // Final check - this should not render for non-admin users due to redirects above
   if (!session.authenticated || session?.user?.role?.toLowerCase() !== "admin") {
     return (
-      <div className="flex justify-center items-center min-h-screen text-red-600">
-        Access denied. Admin privileges required.
+      <div className="flex justify-center items-center min-h-screen text-red-600 px-4">
+        <div className="text-center">
+          <p className="text-sm sm:text-base">Access denied. Admin privileges required.</p>
+        </div>
       </div>
     );
   }
@@ -123,22 +143,45 @@ function AnalyticsPage() {
   return (
     <Sidebar userRole={user.role.toLowerCase()}>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        {/* Responsive Navigation */}
         <nav className="bg-white/80 backdrop-blur-sm shadow-sm border-b border-gray-200/50 sticky top-0 z-30">
-          <div className="max-w-7xl mx-auto px-6 lg:px-8">
-            <div className="flex justify-between h-16 items-center">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between h-14 sm:h-16 items-center">
+              <h1 className="text-lg sm:text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                 Analytics
               </h1>
+              {/* Mobile user indicator */}
+              <div className="flex sm:hidden items-center">
+                <span className="text-sm text-gray-600 capitalize">{user.role}</span>
+              </div>
+              {/* Desktop user info */}
+              <div className="hidden sm:flex items-center space-x-3">
+                <div className="text-right">
+                  <span className="text-sm font-medium text-gray-900 block">
+                    {user.username}
+                  </span>
+                  <span className="text-xs text-gray-500 capitalize">{user.role}</span>
+                </div>
+              </div>
             </div>
           </div>
         </nav>
 
-        <main className="max-w-4xl mx-auto py-8 px-6 lg:px-8">
-          <BarChart
-            usercount={userCount}
-            users={users}
-            text="Number of users in each category"
-          />
+        {/* Main Content - Responsive */}
+        <main className="max-w-7xl mx-auto py-4 sm:py-6 lg:py-8 px-4 sm:px-6 lg:px-8">
+          {isMobile ? (
+            <MobileChart
+              usercount={userCount}
+              users={users}
+              text="User Analytics Overview"
+            />
+          ) : (
+            <BarChart
+              usercount={userCount}
+              users={users}
+              text="Number of users in each category"
+            />
+          )}
         </main>
       </div>
     </Sidebar>

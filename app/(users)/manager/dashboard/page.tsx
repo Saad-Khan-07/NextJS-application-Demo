@@ -1,6 +1,6 @@
 "use client";
-import { redirect } from "next/navigation";
-import LogoutButton from "@/app/dashboard/logout-button";
+
+import LogoutButton from "@/components/LogoutButton";
 import Sidebar from "@/components/Sidebar";
 import { useEffect, useState } from "react";
 
