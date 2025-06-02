@@ -12,7 +12,5 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
 
-
 //user2@123
-//admin@1234
 //client123$

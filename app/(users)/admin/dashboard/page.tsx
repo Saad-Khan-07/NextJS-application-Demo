@@ -3,66 +3,167 @@
 import LogoutButton from "@/components/LogoutButton";
 import Sidebar from "@/components/Sidebar";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+interface User {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+}
+
+interface Session {
+  user: User;
+  authenticated: boolean;
+  error?: string;
+}
 
 export default function DashboardPage() {
-  const [session, setSession] = useState<{
-    user?: any;
-    authenticated: boolean;
-  } | null>(null);
+  const router = useRouter();
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [clients, setClients] = useState(0);
   const [managers, setManagers] = useState(0);
   const [users, setUsers] = useState(0);
 
+  // Secure session fetching with proper error handling
   useEffect(() => {
-    async function getCredentials() {
+    async function fetchSession() {
       try {
-        const [clientRes, managerRes, userRes] = await Promise.all([
-          fetch("/api/db/getclients"),
-          fetch("/api/db/getmanagers"),
-          fetch("/api/db/totalusers"),
-        ]);
+        const res = await fetch("/api/auth/session", {
+          method: "GET",
+          credentials: "include", // Important for cookies
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
 
-        if (!clientRes.ok || !managerRes.ok || !userRes.ok) {
-          throw new Error("One or more requests failed.");
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
         }
 
-        const clientData = await clientRes.json();
-        const managerData = await managerRes.json();
-        const userData = await userRes.json();
+        const data: Session = await res.json();
+        
+        if (!data.authenticated) {
+          router.replace("/login");
+          return;
+        }
 
-        setClients(clientData.clientCount);
-        setManagers(managerData.clientCount);
-        setUsers(userData.users);
+        // Verify user has admin role for this dashboard
+        if (data.user.role !== "ADMIN") {
+          router.replace("/unauthorized");
+          return;
+        }
+
+        setSession(data);
+      } catch (error) {
+        console.error("Session fetch failed:", error);
+        setError("Failed to load session");
+        router.replace("/login");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSession();
+  }, [router]);
+
+  // Secure data fetching with authentication headers
+  useEffect(() => {
+    async function getCredentials() {
+      if (!session?.authenticated) return;
+
+      try {
+        const [clientRes, managerRes, userRes] = await Promise.all([
+          fetch("/api/db/getclients", {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }),
+          fetch("/api/db/getmanagers", {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }),
+          fetch("/api/db/totalusers", {
+            method: "GET",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }),
+        ]);
+
+        // Check if any request failed
+        if (!clientRes.ok || !managerRes.ok || !userRes.ok) {
+          const failedRequests = [];
+          if (!clientRes.ok) failedRequests.push(`clients: ${clientRes.status}`);
+          if (!managerRes.ok) failedRequests.push(`managers: ${managerRes.status}`);
+          if (!userRes.ok) failedRequests.push(`users: ${userRes.status}`);
+          
+          throw new Error(`Failed requests: ${failedRequests.join(", ")}`);
+        }
+
+        const [clientData, managerData, userData] = await Promise.all([
+          clientRes.json(),
+          managerRes.json(),
+          userRes.json(),
+        ]);
+
+        // Validate response data
+        setClients(typeof clientData.clientCount === 'number' ? clientData.clientCount : 0);
+        setManagers(typeof managerData.clientCount === 'number' ? managerData.clientCount : 0);
+        setUsers(typeof userData.users === 'number' ? userData.users : 0);
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
+        setError("Failed to load dashboard data");
       }
     }
 
     getCredentials();
-  }, []);
+  }, [session]);
 
-  useEffect(() => {
-    async function fetchSession() {
-      const res = await fetch("/api/auth/session");
-      const data = await res.json();
-      setSession(data);
-    }
-
-    fetchSession();
-  }, []);
-
-  // If not authenticated, show error
-  if (session && !session.authenticated) {
-    window.location.href = "/login"; // or useRouter().push("/login")
+  // Loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
   }
 
-  if (!session) {
-    return <div>Loading...</div>; // Or a spinner
+  // Error state
+  if (error || !session) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Access Error</h2>
+          <p className="text-gray-600 mb-4">{error || "Unable to load dashboard"}</p>
+          <button
+            onClick={() => router.replace("/login")}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Return to Login
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const { user } = session;
   const now = new Date();
+  
+  // Calculate token expiry more securely (this should come from the JWT payload in a real app)
   const expiryTime = new Date(now.getTime() + 3600 * 1000);
 
   return (
@@ -106,6 +207,22 @@ export default function DashboardPage() {
 
         {/* Main Content */}
         <main className="max-w-7xl mx-auto py-8 px-6 lg:px-8">
+          {/* Error Banner */}
+          {error && (
+            <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              <div className="flex">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow duration-200">
@@ -299,7 +416,7 @@ export default function DashboardPage() {
                           Security Type
                         </span>
                         <span className="px-3 py-1 bg-gradient-to-r from-purple-400 to-pink-500 text-white rounded-full text-sm font-medium">
-                          Server-side Cookie
+                          Secure JWT Cookie
                         </span>
                       </div>
                     </div>
@@ -311,7 +428,10 @@ export default function DashboardPage() {
 
           {/* Quick Actions */}
           <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-            <button className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-1 group">
+            <button 
+              onClick={() => router.push('/admin/reports')}
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-1 group"
+            >
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors duration-200">
                   <svg
@@ -335,7 +455,10 @@ export default function DashboardPage() {
               </div>
             </button>
 
-            <button className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-1 group">
+            <button 
+              onClick={() => router.push('/admin/settings')}
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-1 group"
+            >
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors duration-200">
                   <svg
@@ -360,14 +483,17 @@ export default function DashboardPage() {
                 </div>
                 <div className="text-left">
                   <h3 className="font-semibold text-gray-900">
-                    Account Settings
+                    Account Settings  
                   </h3>
                   <p className="text-sm text-gray-600">Manage your profile</p>
                 </div>
               </div>
             </button>
 
-            <button className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-1 group">
+            <button 
+              onClick={() => router.push('/help')}
+              className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-200 hover:-translate-y-1 group"
+            >
               <div className="flex items-center space-x-4">
                 <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center group-hover:bg-purple-200 transition-colors duration-200">
                   <svg

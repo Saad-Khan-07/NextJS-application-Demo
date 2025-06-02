@@ -116,7 +116,7 @@ function MobileChart({ users, usercount, text }: MobileChartProps) {
   const total = usercount.reduce((sum, count) => sum + count, 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 ">
       {/* Stats Cards Row */}
       <div className="grid grid-cols-2 gap-3">
         {users.map((user, index) => (

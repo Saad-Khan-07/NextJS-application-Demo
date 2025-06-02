@@ -1,12 +1,13 @@
+// signup/page.tsx
 import React from 'react'
 import SignupForm from './signup-form'
-import { getSession } from '@/lib/auth'
+import { getSession } from '@/lib/auth-middleware'
 import { redirect } from 'next/navigation';
 
 async function SignupPage() {
   const session = await getSession();
   if(session?.authenticated){
-    redirect('/logout')
+    redirect('/dashboard') // Redirect to dashboard instead of logout
   }
 
   return (

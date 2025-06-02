@@ -1,61 +1,31 @@
+// login/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { validateCredentials } from '@/lib/auth';
-import { AuthResponse, LoginRequest } from '@/types/auth';
+import { validateCredentials, createAuthResponse } from '@/lib/auth-middleware';
 
 export async function POST(request: NextRequest) {
   try {
-    const body: LoginRequest = await request.json();
-    const { email, password } = body;
+    const { email, password } = await request.json();
 
     if (!email || !password) {
-      return NextResponse.json<AuthResponse>({ 
+      return NextResponse.json({ 
         success: false, 
         message: 'Email and password are required' 
       }, { status: 400 });
     }
 
     const user = await validateCredentials(email, password);
-
-    if (user) {
-      const response = NextResponse.json<AuthResponse>({ 
-        success: true, 
-        message: 'Login successful',
-        user
-      });
-
-      // Set session cookies
-      response.cookies.set('session', 'authenticated', {
-        httpOnly: true,
-        path: '/',
-        maxAge: 3600,
-        sameSite: 'strict'
-      });
-      response.cookies.set('userEmail', user.email, {
-        path: '/',
-        maxAge: 3600,
-        sameSite: 'strict'
-      });
-      response.cookies.set('userId', user.id, {
-        path: '/',
-        maxAge: 3600,
-        sameSite: 'strict'
-      });
-      response.cookies.set('userRole', user.role, {
-        path: '/',
-        maxAge: 3600,
-        sameSite: 'strict'
-      });
-
-      return response;
+    if (!user) {
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Invalid credentials' 
+      }, { status: 401 });
     }
 
-    return NextResponse.json<AuthResponse>({ 
-      success: false, 
-      message: 'Invalid credentials' 
-    }, { status: 401 });
+    // Return response with JWT token cookie
+    return await createAuthResponse(user, 'Login successful');
 
   } catch (error) {
-    return NextResponse.json<AuthResponse>({ 
+    return NextResponse.json({ 
       success: false, 
       message: 'Internal server error' 
     }, { status: 500 });

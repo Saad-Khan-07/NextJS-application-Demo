@@ -1,17 +1,40 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, FormEvent } from "react";
+import { useState, useEffect, FormEvent } from "react";
 
 function SignupForm() {
   const router = useRouter();
+
+  const [session, setSession] = useState<{
+    user?: any;
+    authenticated: boolean;
+  } | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [username, setUsername] = useState("");
   const [error, setError] = useState<string>("");
   const [role, setRole] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    async function fetchSession() {
+      try {
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        setSession(data);
+      } catch (error) {
+        console.error("Session fetch error:", error);
+        setSession({ authenticated: false });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchSession();
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -37,7 +60,6 @@ function SignupForm() {
       return;
     }
 
-    // Username validation
     const trimmedUsername = username.trim();
     if (trimmedUsername.length === 0) {
       setError("Username cannot be empty");
@@ -54,7 +76,6 @@ function SignupForm() {
       return;
     }
 
-    // Email validation
     const emailRegex = /^[a-zA-Z0-9.-]*\.?adriit@gmail\.com$/;
     if (!emailRegex.test(email)) {
       setError("Please enter a valid email ending with adriit@gmail.com");
@@ -62,7 +83,6 @@ function SignupForm() {
       return;
     }
 
-    // Password validation
     const passRegex =
       /^(?=.*[a-zA-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
     if (!passRegex.test(password)) {
@@ -73,7 +93,6 @@ function SignupForm() {
       return;
     }
 
-    // Check if username exists
     try {
       const usernameCheckResponse = await fetch(
         "/api/auth/checkusernameexists",
@@ -99,7 +118,6 @@ function SignupForm() {
       return;
     }
 
-    // Create account
     try {
       const response = await fetch("/api/auth/signup", {
         method: "POST",
@@ -117,17 +135,17 @@ function SignupForm() {
       const data = await response.json();
 
       if (data.success) {
-          if(data.user.role === "admin"){
-            router.push("/admin/dashboard");
-          } else if(data.user.role === "manager"){
-            router.push("/manager/dashboard");
-          } else if(data.user.role === "client"){
-            router.push("/client/dashboard");
-          } else {
-            router.push("/dashboard"); // fallback
-          }
+        if (data.user.role.toLowerCase() === "admin") {
+          router.push("/admin/dashboard");
+        } else if (data.user.role.toLowerCase()  === "manager") {
+          router.push("/manager/dashboard");
+        } else if (data.user.role.toLowerCase() === "client") {
+          router.push("/client/dashboard");
+        } else {
+          router.push("/dashboard");
+        }
       } else {
-        setError(data.message || 'Login failed. Please check your credentials.');
+        setError(data.message || "Signup failed. Please try again.");
       }
     } catch (error) {
       setError("Network error. Please try again.");
@@ -135,6 +153,17 @@ function SignupForm() {
       setLoading(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-black">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-400 mx-auto mb-4"></div>
+          <p className="text-slate-300">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -211,31 +240,29 @@ function SignupForm() {
           />
         </div>
 
-          <div>
-            <label
-              htmlFor="role-select"
-              className="block text-sm font-medium text-white"
-            >
-              ROLE
-            </label>
-            <select
-              id="role-select" // Changed ID to be specific to the select element
-              required
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
-            >
-              {/* Default/Placeholder option */}
-              <option value="" disabled>
-                Select a role
-              </option>
-              {/* Role options */}
-              <option value="MANAGER">Manager</option>
-              <option value="ADMIN">Admin</option>
-              <option value="CLIENT">Client</option>
-            </select>
-          </div>
+        <div>
+          <label
+            htmlFor="role-select"
+            className="block text-sm font-medium text-white"
+          >
+            ROLE
+          </label>
+          <select
+            id="role-select"
+            required
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+          >
+            <option value="" disabled>
+              Select a role
+            </option>
+            <option value="MANAGER">Manager</option>
+            <option value="ADMIN">Admin</option>
+            <option value="CLIENT">Client</option>
+          </select>
         </div>
+      </div>
 
       {error && (
         <div className="text-red-400 text-sm text-center bg-red-900/20 p-2 rounded">
@@ -252,19 +279,15 @@ function SignupForm() {
       </button>
 
       <div className="text-center">
-        <div className="text-white text-sm">
+        <p className="text-white text-sm">
           Already have an account?{" "}
-          <div className="text-center">
-            <p className="text-gray-300">
-              <a
-                href="/login"
-                className="font-semibold text-purple-400 hover:text-purple-300 transition-colors duration-200 hover:underline"
-              >
-                Sign in to your account
-              </a>
-            </p>
-          </div>
-        </div>
+          <a
+            href="/login"
+            className="font-semibold text-purple-400 hover:text-purple-300 transition-colors duration-200 hover:underline"
+          >
+            Sign in to your account
+          </a>
+        </p>
       </div>
     </form>
   );

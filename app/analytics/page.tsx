@@ -96,6 +96,7 @@ function AnalyticsPage() {
         ]);
       } catch (err) {
         setError("Failed to load analytics data.");
+        console.log(err)
       } finally {
         setLoading(false);
       }

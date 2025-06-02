@@ -33,7 +33,7 @@ export default function DashboardPage() {
 
       getclients();
       if (!clients) {
-        throw new Error("Error");
+        throw new Error("Error. Failed to fetch clients.");
       }
 
       console.log(client);

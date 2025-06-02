@@ -1,6 +1,6 @@
+// signup/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { createUser } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import { createUser, createAuthResponse } from '@/lib/auth-middleware';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,47 +13,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create user with username
+    // Create user
     const user = await createUser(email, password, username, role);
 
-    // Set session cookies
-    const cookieStore = await cookies();
-    cookieStore.set('session', 'authenticated', { 
-      httpOnly: true, 
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 // 7 days
-    });
-    cookieStore.set('userEmail', user.email, { 
-      httpOnly: true, 
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60
-    });
-    cookieStore.set('userId', user.id, { 
-      httpOnly: true, 
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60
-    });
-    cookieStore.set('userRole', user.role, { 
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60
-    });
-    
-
-    return NextResponse.json({
-      success: true,
-      message: 'Account created successfully',
-      user: {
-        email: user.email,
-        id: user.id,
-        role: user.role,
-        username: user.username
-      }
-    });
+    // Return response with JWT token cookie
+    return await createAuthResponse(user, 'Account created successfully');
 
   } catch (error: any) {
     console.error('Signup error:', error);

@@ -8,21 +8,53 @@ export default function LoginPage() {
     user?: any;
     authenticated: boolean;
   } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchSession() {
-      const res = await fetch("/api/auth/session");
-      const data = await res.json();
-      setSession(data);
-      if (session?.authenticated) {
-        redirect(`/${session?.user?.role.toLowerCase()}/dashboard`);
+      try {
+        const res = await fetch("/api/auth/session");
+        const data = await res.json();
+        setSession(data);
+        
+        // ✅ Check authentication in the response data, not state
+        if (data?.authenticated) {
+          redirect(`/${data?.user?.role.toLowerCase()}/dashboard`);
+        }
+      } catch (error) {
+        console.error('Session fetch error:', error);
+        setSession({ authenticated: false });
+      } finally {
+        setLoading(false);
       }
     }
 
     fetchSession();
   }, []);
 
-  // If already authenticated, redirect to dashboard
+  // ✅ Add a separate useEffect to handle session state changes
+  useEffect(() => {
+    if (session?.authenticated) {
+      redirect(`/${session?.user?.role.toLowerCase()}/dashboard`);
+    }
+  }, [session]);
+
+  // ✅ Show loading state while checking authentication
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
+        <div className="text-white text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+          <p>Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ Only render login form if not authenticated
+  if (session?.authenticated) {
+    return null; // Will redirect anyway
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 relative overflow-hidden">

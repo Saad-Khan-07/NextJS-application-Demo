@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Menu, X, Home, User, Settings, BarChart3, FileText, Bell, Lock } from 'lucide-react';
+import { useState } from 'react';
+import { Menu, X, Home, User, Settings, BarChart3, Lock } from 'lucide-react';
 import { usePathname } from 'next/navigation';
+import Link from 'next/link'; // Add this import
 
 interface SidebarProps {
   children: React.ReactNode;
@@ -39,11 +40,9 @@ export default function Sidebar({ children, userRole }: SidebarProps) {
   const handleNavigation = (item: any, event: React.MouseEvent) => {
     if (item.adminOnly && userRole !== 'admin') {
       event.preventDefault();
-      // Optional: Show a toast notification or modal here
       alert('Access denied. Admin privileges required.');
       return;
     }
-    // Navigation will proceed normally for allowed items
   };
 
   return (
@@ -84,14 +83,16 @@ export default function Sidebar({ children, userRole }: SidebarProps) {
           ${isExpanded ? 'opacity-100' : 'opacity-0'}
         `}>
           <div className={`
-            px-3 py-1 rounded-full text-xs font-medium text-center
-            ${userRole === 'admin' 
-              ? 'bg-red-100 text-red-800 border border-red-200' 
-              : 'bg-green-100 text-green-800 border border-green-200'
-            }
-          `}>
-            {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
-          </div>
+  px-3 py-1 rounded-full text-xs font-medium text-center
+  ${userRole === 'admin' 
+    ? 'bg-red-100 text-red-800 border border-red-200' 
+    : 'bg-green-100 text-green-800 border border-green-200'
+  }
+`}>
+  {typeof userRole === 'string' && userRole
+    ? userRole.charAt(0).toUpperCase() + userRole.slice(1)
+    : 'Unknown'}
+</div>
         </div>
 
         {/* Navigation Menu */}
@@ -103,7 +104,8 @@ export default function Sidebar({ children, userRole }: SidebarProps) {
               
               return (
                 <li key={index}>
-                  <a
+                  {/* Replace anchor tag with Link component */}
+                  <Link
                     href={item.href}
                     onClick={(e) => handleNavigation(item, e)}
                     className={`
@@ -144,7 +146,6 @@ export default function Sidebar({ children, userRole }: SidebarProps) {
                       {item.label}
                     </span>
                     
-                    
                     {!isExpanded && (
                       <div className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
                         {item.label}
@@ -153,7 +154,7 @@ export default function Sidebar({ children, userRole }: SidebarProps) {
                         )}
                       </div>
                     )}
-                  </a>
+                  </Link>
                 </li>
               );
             })}
@@ -172,20 +173,6 @@ export default function Sidebar({ children, userRole }: SidebarProps) {
             </p>
           </div>
         )}
-
-        {/* Sidebar Footer */}
-        {/* <div className={`
-          absolute bottom-4 left-2 right-2 transition-opacity duration-200
-          ${isExpanded ? 'opacity-100' : 'opacity-0'}
-        `}>
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-4 text-white">
-            <h4 className="font-semibold text-sm mb-1">Upgrade to Pro</h4>
-            <p className="text-xs opacity-90 mb-2">Get access to premium features</p>
-            <button className="bg-white/20 hover:bg-white/30 transition-colors duration-200 rounded-md px-3 py-1 text-xs font-medium">
-              Learn More
-            </button>
-          </div>
-        </div> */}
       </div>
 
       {/* Main Content */}

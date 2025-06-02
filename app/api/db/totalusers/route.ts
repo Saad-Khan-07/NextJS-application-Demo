@@ -1,14 +1,21 @@
-// app/api/db/allusers/route.ts
-import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { withRole } from '@/lib/auth-middleware';
+import { NextResponse } from 'next/server';
 
-export async function GET() {
+export const GET = withRole(['ADMIN'])(async (request) => {
   try {
-    const users = await prisma.user.count();
-
-    return NextResponse.json({ users }, { status: 200 });
+    const totalUsers = await prisma.user.count();
+    // const userdata = await prisma.user.findMany();
+    // console.log(userdata);
+    return NextResponse.json({ 
+      success: true, 
+      users: totalUsers 
+    });
   } catch (error) {
-    console.error("Error fetching all users:", error);
-    return NextResponse.json({ message: "Failed to fetch users." }, { status: 500 });
+    console.error('Error fetching total users:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch user data' },
+      { status: 500 }
+    );
   }
-}
+});
